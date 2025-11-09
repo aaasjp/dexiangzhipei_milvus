@@ -1,7 +1,7 @@
 import requests
 import json
 
-base_url = 'http://127.0.0.1:8801/vector_db_service/'
+base_url = 'http://127.0.0.1:8005/vector_db_service/'
 api_key = '2024_hello_ai'
 
 
