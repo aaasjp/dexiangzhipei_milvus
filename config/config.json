@@ -43,7 +43,7 @@
     }
   },
   "api_key": "2024_hello_ai",
-  "embedding_model_path": "/data/embeddings/bge-large-zh-v1.5",
+  "embedding_model_path": "/workspace/embeddings/bge-large-zh-v1.5",
   "convert_qa_to_doc": "yes",
   "SERPAPI_API_KEY": "ae43b25aa260867c95768b1a5d5acc50ce658b77bb561b77d39410580a9707d1",
   "split": {
