@@ -16,7 +16,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # 配置信息
 BASE_URL = 'http://127.0.0.1:8005/vector_db_service/'
 API_KEY = '2024_hello_ai'
-TENANT_CODE = 'xiaomi'
+TENANT_CODE = 'resume'
 COLLECTION_NAME = 'test_collection'
 
 
@@ -177,8 +177,8 @@ def test_add_document():
         'tenant_code': TENANT_CODE,
         'collection_name': COLLECTION_NAME,
         'api_key': API_KEY,
-        'doc_url': 'http://example.com/document.pdf',  # 请替换为实际URL
-        'doc_name': '测试文档'
+        'doc_url': 'http://220.154.134.61:9000/forum-files/2025-11-09-resume-28372e60-d92b-40c2-a050-8256e758ac8e.pdf',  # 请替换为实际URL
+        'doc_name': '测试文档-简历'
     }
     
     print("注意: 此测试需要有效的文档URL，如果URL不可访问将失败")
@@ -197,12 +197,10 @@ def test_add_multi_document():
         'collection_name': COLLECTION_NAME,
         'api_key': API_KEY,
         'multi_doc_urls': [
-            'http://example.com/doc1.pdf',  # 请替换为实际URL
-            'http://example.com/doc2.pdf'   # 请替换为实际URL
+            'http://220.154.134.61:9000/forum-files/2025-11-09-resume-28372e60-d92b-40c2-a050-8256e758ac8e.pdf',  # 请替换为实际URL
         ],
         'doc_names': [
-            '文档1',
-            '文档2'
+            '测试文档-简历'
         ]
     }
     
@@ -293,7 +291,7 @@ def test_search_doc():
         'tenant_code': TENANT_CODE,
         'collection_name': COLLECTION_NAME,
         'api_key': API_KEY,
-        'query': '产品介绍',
+        'query': '王建华',
         'collection_type': 'DOC',
         'limit': 5
     }
@@ -311,11 +309,10 @@ def run_all_tests():
     # 测试流程
     tests = [
         ("创建知识库", test_new_collection),
-        ("添加问答对", test_add_qa),
-        ("添加多个问答对", test_add_multiple_qa),
-        ("更新问答对", test_update_qa),
-        ("搜索问答对", test_search_from_vector_db),
-        ("删除问答对", test_del_qa),
+        ("添加文档", test_add_document),
+        ("批量添加文档", test_add_multi_document),
+        ("搜索文档", test_search_doc),
+        ("删除文档", test_del_document),
         ("删除知识库", test_del_collection),
     ]
     
@@ -344,18 +341,18 @@ def run_single_test(test_name):
     """运行单个测试"""
     test_map = {
         'new_collection': test_new_collection,
-        'del_collection': test_del_collection,
-        'add_qa': test_add_qa,
-        'add_multiple_qa': test_add_multiple_qa,
-        'add_qa_from_template': test_add_qa_from_template,
         'add_document': test_add_document,
         'add_multi_document': test_add_multi_document,
-        'update_qa': test_update_qa,
-        'del_qa': test_del_qa,
-        'del_multiple_qa': test_del_multiple_qa,
-        'del_document': test_del_document,
-        'search_qa': test_search_from_vector_db,
         'search_doc': test_search_doc,
+        'del_document': test_del_document,
+        'del_collection': test_del_collection,
+        #'add_qa': test_add_qa,
+        #'add_multiple_qa': test_add_multiple_qa,
+        #'add_qa_from_template': test_add_qa_from_template,
+        #'update_qa': test_update_qa,
+        #'del_qa': test_del_qa,
+        #'del_multiple_qa': test_del_multiple_qa,
+        #'search_qa': test_search_from_vector_db,
     }
     
     if test_name in test_map:
