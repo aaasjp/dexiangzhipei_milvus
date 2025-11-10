@@ -51,7 +51,7 @@
     "overlap": 100
   },
   "mysql": {
-    "host": "127.0.0.1",
+    "host": "172.17.10.144",
     "port": 3306,
     "user": "peilian",
     "password": "CDzPZphYBSY4mWKJ",
