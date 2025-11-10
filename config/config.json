@@ -78,7 +78,7 @@
     }
   },
   "ocr_service": {
-    "base_url": "http://172.17.10.144.1:8000",
+    "base_url": "http://172.17.10.144:8000",
     "parse_mode": "accuracy",
     "timeout": 3000
   }
