@@ -1,14 +1,5 @@
-CREATE DATABASE liangshiyiyou CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-use liangshiyiyou;
-
-CREATE TABLE t_chat_effect_param (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    tenant_code VARCHAR(255) NOT NULL,
-    collection_name VARCHAR(255) NOT NULL,
-    params JSON NOT NULL,
-    UNIQUE INDEX idx_tenant_collection (tenant_code, collection_name)
-);
-
+CREATE DATABASE peilian CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+use peilian;
 
 CREATE TABLE t_conversation (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,

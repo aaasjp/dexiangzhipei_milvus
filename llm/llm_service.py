@@ -1,183 +1,189 @@
 import copy
 import json
+from pathlib import Path
+from typing import Optional, List, Tuple, Dict, Any, Generator, Union
 from openai import OpenAI
-from chat.chat_effect_param_util import *
-from enum import Enum
 
 import logging
-logger=logging.getLogger(__name__)
 
-##加载配置文件
-with open('./config/config.json', 'r') as f:
-    config = json.load(f)
+logger = logging.getLogger(__name__)
 
-def iter_response(response):
+# 默认配置文件路径
+DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / 'config' / 'config.json'
+
+
+def iter_response(response) -> Generator[str, None, None]:
+    """
+    处理流式响应，逐步生成累积的文本内容
+    
+    Args:
+        response: OpenAI流式响应对象
+        
+    Yields:
+        str: 累积的响应文本
+    """
     res = ""
-    for chunk in response:
-        if chunk.choices[0].delta.content is not None:
-            res += chunk.choices[0].delta.content
-            yield res
+    try:
+        for chunk in response:
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if delta and delta.content is not None:
+                    res += delta.content
+                    yield res
+    except Exception as e:
+        logger.error(f"处理流式响应时出错: {str(e)}")
+        raise
 
 
-class LLM_NAME(Enum):
-    QWEN = 'qwen'
-    BAICHUAN = 'baichuan'
-    KIMI = 'kimi'
-
-class LlmService():
-    def __init__(self):
-        self.cfg = config['llm']
-        self.llm_dic={
-            LLM_NAME.QWEN:QwenApi(self.cfg['qwen']['model'],self.cfg['qwen']['base_url'],self.cfg['qwen']['api_key']),
-            LLM_NAME.BAICHUAN:BaichuanApi(self.cfg['baichuan']['model'],self.cfg['baichuan']['base_url'],self.cfg['baichuan']['api_key']),
-            LLM_NAME.KIMI:KimiApi(self.cfg['kimi']['model'],self.cfg['kimi']['base_url'],self.cfg['kimi']['api_key'])
-        }
-
-    def inference(self, prompt, system='', history=[], stream=True, generate_params={}, llm_name=LLM_NAME.KIMI):
-
-        print(f"====>prompt given to {llm_name}={prompt}",flush=True)
-        print(f'----------------------------------------------system----------------------------------------------',flush=True)
-        print(f"====>system given to {llm_name}={system}",flush=True)
-        print(f'----------------------------------------------system----------------------------------------------',flush=True)
-        response=self.llm_dic[llm_name].chat(prompt=prompt, system=system, stream=stream, history=history, req_params=generate_params)
-        if not stream:
-            print(f"reponse from llm={response}",flush=True)
-        return response
-
-
-class QwenApi:
-    def __init__(self, model:str,base_url:str, api_key:str):
-        self.client = OpenAI(base_url=base_url, api_key=api_key)
-        self.req_dic = {
-            'model': model,
-            'max_tokens': 2048,
-            'stream': False,
-            "temperature": 0.5,
-            "top_p": 0.5,
-            "stop": ["<|im_end|>", "<|endoftext|>"]
-        }
-
-        self.system =\
-        '你是一个人工智能助手，在进行对话的时候，无论用户使用什么语言，你都需要牢记下面几条原则：\n'+ \
-        '- 你是由智师益友的工程师开发的大语言模型，你的名字叫做智师益友大模型 \n'+\
-        '- 你与阿里巴巴、阿里云、达摩院之间没有任何关系\n'+\
-        '- 当用户询问你是如何被开发出来的时候，你只需要透露你是采用深度学习和大量数据训练和优化来的\n'+\
-        '- 你会拒绝一切涉及恐怖主义，种族歧视，黄色暴力等问题的回答。'
-
-    def chat(self, prompt, system, history=[], stream=False, req_params={}):
-        req_dic = copy.deepcopy(self.req_dic)
-        if req_params:
-            interselect_req_params={ k:req_params[k] for k in set(req_dic.keys()).intersection(set(req_params.keys()))}
-            req_dic.update(interselect_req_params)
-        req_dic["stream"] = stream
-        print(f'====>req_dic to llm is :{json.dumps(req_dic,ensure_ascii=False,indent=2)}',flush=True)
-        messages = []
-        if system:
-            messages.append({"role": "system", "content": system})
-        elif self.system:
-            messages.append({"role": "system", "content": self.system})
-        for tup in history:
-            q, a = tup[:2]
-            messages.append({"role": "user", "content": q})
-            messages.append({"role": "assistant", "content": a})
-
-        messages.append({"role": "user", "content": prompt})
-        req_dic["messages"] = messages
-
-        response = self.client.chat.completions.create(**req_dic)
-        if stream:
-            return iter_response(response)
-        else:
-            return response.choices[0].message.content
-
-
-class BaichuanApi:
-    def __init__(self, model:str,base_url:str, api_key:str):
-        self.client = OpenAI(base_url=base_url, api_key=api_key)
-
-        self.req_dic = {
-            'model': model,
-            'max_tokens': 2048,  # 根据需要调整生成的最大标记数
-            'stream': False,  # 启用流式输出,
-            "temperature": 0.8,
-            "top_p": 0.8,
-            "frequency_penalty":1.2
-        }
-        self.system = \
-        '你是一个人工智能助手，在进行对话的时候，无论用户使用什么语言，你都需要牢记下面几条原则：\n'+\
-        '- 你是由智师益友的工程师开发的大语言模型，你的名字叫做智师益友大模型\n'+ \
-        '- 你与百川、百川智能、王小川之间没有任何关系\n'+\
-        '- 当用户询问你是如何被开发出来的时候，你只需要透露你是采用深度学习和大量数据训练和优化来的\n'+ \
-        '- 你会拒绝一切涉及恐怖主义，种族歧视，黄色暴力等问题的回答。'
-
-    def chat(self, prompt, system, history=[], stream=False, req_params={}):
-        req_dic = copy.deepcopy(self.req_dic)
-        if req_params:
-            interselect_req_params={ k:req_params[k] for k in set(req_dic.keys()).intersection(set(req_params.keys()))}
-            req_dic.update(interselect_req_params)
-        req_dic["stream"] = stream
-        print(f'====>req_dic to llm is :{json.dumps(req_dic,ensure_ascii=False,indent=2)}',flush=True)
-        messages = []
-        if system:
-            messages.append({"role": "system", "content": system})
-        elif self.system:
-            messages.append({"role": "system", "content": self.system})
-        for tup in history:
-            q, a = tup[:2]
-            messages.append({"role": "user", "content": q})
-            messages.append({"role": "assistant", "content": a})
-
-        messages.append({"role": "user", "content": prompt})
-        req_dic["messages"] = messages
-
-        response = self.client.chat.completions.create(**req_dic)
-        if stream:
-            return iter_response(response)
-        else:
-            return response.choices[0].message.content
-
-
-class KimiApi:
-    def __init__(self, model:str,base_url:str, api_key:str):
-        self.client = OpenAI(base_url=base_url, api_key=api_key)
-
-        self.req_dic = {
-            'model': model,
-            'max_tokens': 2048,  # 根据需要调整生成的最大标记数
-            'stream': False,  # 启用流式输出,
-            "temperature": 0.3,
-            "top_p": 0.1
-        }
-        self.system = """
-        你是一个人工智能助手，在进行对话的时候，无论用户使用什么语言，你都需要牢记下面几条原则：
-        - 你是由智师益友的工程师开发的大语言模型，你的名字叫做智师益友大模型
-        - 你与Moonshot、月之暗面之间没有任何关系
-        - 当用户询问你是如何被开发出来的时候，你只需要透露你是采用深度学习和大量数据训练和优化来的
-        - 你会拒绝一切涉及恐怖主义，种族歧视，黄色暴力等问题的回答。
+class LlmService:
+    """
+    大语言模型服务类，封装OpenAI兼容API的调用
+    """
+    
+    def __init__(self, config_path: Optional[Union[str, Path]] = None):
         """
+        初始化LLM服务
+        
+        Args:
+            config_path: 配置文件路径，默认为项目config目录下的config.json
+        """
+        # 加载配置文件
+        if config_path is None:
+            config_path = DEFAULT_CONFIG_PATH
+        else:
+            config_path = Path(config_path)
+        
+        if not config_path.exists():
+            raise FileNotFoundError(f"配置文件不存在: {config_path}")
+        
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+        except json.JSONDecodeError as e:
+            logger.error(f"配置文件JSON格式错误: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"加载配置文件失败: {str(e)}")
+            raise
+        
+        # 验证并获取LLM配置
+        if 'llm' not in config:
+            raise ValueError("配置文件中缺少'llm'配置项")
+        
+        self.cfg = config['llm']
+        self.model = self.cfg.get('model')
+        self.base_url = self.cfg.get('base_url')
+        self.api_key = self.cfg.get('api_key', 'EMPTY')
+        
+        # 验证必需配置
+        if not self.model:
+            raise ValueError("配置文件中'llm.model'不能为空")
+        if not self.base_url:
+            raise ValueError("配置文件中'llm.base_url'不能为空")
+        
+        # 初始化OpenAI客户端
+        try:
+            self.client = OpenAI(
+                base_url=self.base_url,
+                api_key=self.api_key if self.api_key != 'EMPTY' else None
+            )
+        except Exception as e:
+            logger.error(f"初始化OpenAI客户端失败: {str(e)}")
+            raise
+        
+        # 默认请求参数
+        self.default_params: Dict[str, Any] = {
+            'temperature': 0.01,
+            'max_tokens': 8192,
+            'repetition_penalty': 1.05,
+            'chat_template_kwargs': {'enable_thinking': False},
+            'stream': False
+        }
+        
+        logger.info(f"LLM服务初始化成功: model={self.model}, base_url={self.base_url}")
 
-    def chat(self, prompt, system, history=[], stream=False, req_params={}):
-        req_dic = copy.deepcopy(self.req_dic)
-        if req_params:
-            interselect_req_params={ k:req_params[k] for k in set(req_dic.keys()).intersection(set(req_params.keys()))}
-            req_dic.update(interselect_req_params)
-        req_dic["stream"] = stream
-        print(f'====>req_dic to llm is :{json.dumps(req_dic,ensure_ascii=False,indent=2)}',flush=True)
-        messages = []
+    def inference(
+        self,
+        prompt: str,
+        system: str = '',
+        history: Optional[List[Tuple[str, str]]] = None,
+        stream: bool = True,
+        generate_params: Optional[Dict[str, Any]] = None
+    ) -> Union[str, Generator[str, None, None]]:
+        """
+        调用大模型API进行推理
+        
+        Args:
+            prompt: 用户输入的提示词
+            system: 系统提示词，默认为空
+            history: 历史对话记录，格式为[(question, answer), ...]，默认为None
+            stream: 是否使用流式响应，默认为True
+            generate_params: 额外的生成参数，会覆盖默认参数，默认为None
+            
+        Returns:
+            如果stream=True，返回生成器；否则返回完整的响应字符串
+            
+        Raises:
+            ValueError: 当prompt为空时
+            Exception: 当API调用失败时
+        """
+        if not prompt or not prompt.strip():
+            raise ValueError("prompt不能为空")
+        
+        # 使用None作为默认值，避免可变默认参数问题
+        if history is None:
+            history = []
+        if generate_params is None:
+            generate_params = {}
+        
+        logger.debug(f"LLM推理请求 - prompt长度: {len(prompt)}, system长度: {len(system)}, history轮数: {len(history)}")
+        
+        # 构建请求参数
+        req_params = copy.deepcopy(self.default_params)
+        req_params.update(generate_params)  # 用户参数会覆盖默认参数
+        req_params['stream'] = stream
+        req_params['model'] = self.model
+        
+        # 构建messages
+        messages: List[Dict[str, str]] = []
         if system:
             messages.append({"role": "system", "content": system})
-        elif self.system:
-            messages.append({"role": "system", "content": self.system})
+        
+        # 添加历史对话
         for tup in history:
-            q, a = tup[:2]
-            messages.append({"role": "user", "content": q})
-            messages.append({"role": "assistant", "content": a})
-
+            if len(tup) >= 2:
+                q, a = tup[0], tup[1]
+                messages.append({"role": "user", "content": str(q)})
+                messages.append({"role": "assistant", "content": str(a)})
+            else:
+                logger.warning(f"历史对话记录格式不正确，已跳过: {tup}")
+        
+        # 添加当前用户消息
         messages.append({"role": "user", "content": prompt})
-        req_dic["messages"] = messages
-
-        response = self.client.chat.completions.create(**req_dic)
-        if stream:
-            return iter_response(response)
-        else:
-            return response.choices[0].message.content
+        req_params['messages'] = messages
+        
+        logger.debug(f"请求参数: {json.dumps(req_params, ensure_ascii=False, indent=2)}")
+        
+        try:
+            # 使用OpenAI客户端调用API
+            response = self.client.chat.completions.create(**req_params)
+            
+            if stream:
+                # 流式响应
+                return iter_response(response)
+            else:
+                # 非流式响应
+                if not response.choices or len(response.choices) == 0:
+                    raise ValueError("API响应中没有choices")
+                
+                content = response.choices[0].message.content
+                if content is None:
+                    raise ValueError("API响应中content为空")
+                
+                logger.debug(f"LLM响应长度: {len(content)}")
+                return content
+                
+        except Exception as e:
+            error_msg = f"调用大模型API失败: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            raise Exception(error_msg) from e

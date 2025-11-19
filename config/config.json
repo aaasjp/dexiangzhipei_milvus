@@ -1,20 +1,8 @@
 {
   "llm": {
-    "qwen": {
-      "model": "qwen1.5-32b-chat",
-      "base_url": "http://192.168.10.80:7000/v1",
-      "api_key": "EMPTY"
-    },
-    "baichuan": {
-      "model": "baichuan2-13b-chat",
-      "base_url": "http://192.168.10.81:7000/v1",
-      "api_key": "EMPTY"
-    },
-    "kimi": {
-      "model": "moonshot-v1-32k",
-      "base_url": "https://api.moonshot.cn/v1",
-      "api_key": "sk-7UFRd5CxYaMpK38c9wGxOlmoJZjc9hKoZ9XBbS3eZTnm9U3A"
-    }
+    "model": "Qwen2.5-72B-Instruct",
+    "base_url": "http://<模型地址>",
+    "api_key": "EMPTY"
   },
   "milvus": {
     "host": "172.17.10.144",

@@ -1,3 +1,4 @@
+import json
 import logging
 
 # logging.basicConfig(filename='logs/app_chat_server.log', encoding='utf-8', level=logging.INFO,
@@ -11,7 +12,6 @@ from flask_cors import CORS
 from utils.auth_check import *
 from chat.chat_uitls import *
 from llm.llm_service import *
-from chat.chat_effect_param_util import *
 
 app = Flask(__name__)
 CORS(app)
@@ -105,7 +105,7 @@ def send_message(data):
     user_id = data.get("user_id", None)
     tenant_code = data.get("tenant_code", None)
     collection_name = data.get("collection_name", None)
-    chat_effect_params = get_chat_effect_param(tenant_code, collection_name)
+    chat_effect_params = config['chat_effect_param']
     stream = True
 
     assert prompt is not None
@@ -144,7 +144,7 @@ def send_message(data):
     response_dict['status'] = 'finished'
     socketio.send(response_dict, to=room)
 
-    # 一定要记住，在下面实现，当流失输出最后一个的时候，记录到历史对话中！！！
+    # 一定要记住，在下面实现，当流式输出最后一个的时候，记录到历史对话中！！！
     chat_session_manager.update_last_reply_to_chat_state(session_id, finally_res)
 
     # session入库
