@@ -448,8 +448,7 @@ def _build_bm25_index(collection, final_filter, collection_type):
         query_result = collection.query(
             expr=final_filter if final_filter else None,
             output_fields=fields,
-            #limit=16384  # Milvus默认最大查询数量
-            limit=10
+            limit=16384  # Milvus默认最大查询数量
         )
         
         if len(query_result) == 0:
@@ -506,7 +505,7 @@ def _bm25_search(bm25, entities, query, limit):
     return results
 
 
-def _reciprocal_rank_fusion(vector_results, bm25_results, k=60):
+def _reciprocal_rank_fusion(vector_results, bm25_results, k=20):
     """使用RRF（Reciprocal Rank Fusion）融合向量检索和BM25检索结果"""
     # 构建id到rank的映射
     vector_ranks = {}
@@ -645,7 +644,7 @@ def search_from_collection(tenant_code, collection_name, collection_type, query_
                 data=query_embeddings,
                 anns_field="embedding",
                 param=config['search_params'],
-                limit=limit * 2,  # 获取更多结果用于融合
+                limit=limit * 5,  # 获取更多结果用于融合
                 expr=final_filter if final_filter else None,
                 output_fields=fields
             )
@@ -664,11 +663,11 @@ def search_from_collection(tenant_code, collection_name, collection_type, query_
             
             # BM25检索
             logger.info(f"开始BM25检索，查询: {query}")
-            bm25_results = _bm25_search(bm25, bm25_entities, query, limit * 2)
+            bm25_results = _bm25_search(bm25, bm25_entities, query, limit * 5)
             
             # RRF融合
             logger.info(f"开始RRF融合结果")
-            rrf_k = config.get('hybrid_search', {}).get('rrf_k', 60)
+            rrf_k = config.get('hybrid_search', {}).get('rrf_k', 20)
             fused_results = _reciprocal_rank_fusion(vector_results, bm25_results, k=rrf_k)
             
             # 取top-k结果
@@ -676,9 +675,8 @@ def search_from_collection(tenant_code, collection_name, collection_type, query_
             
             # 格式化结果
             query_ids = [r.get('id') for r in top_results if r.get('id') is not None]
-            # 将RRF分数转换为距离（距离越小越好，分数越大越好）
-            max_rrf = max([r.get('rrf_score', 0.0) for r in top_results] + [1.0])
-            query_distances = [1.0 - (r.get('rrf_score', 0.0) / max_rrf) for r in top_results if r.get('id') is not None]
+            # 直接使用RRF分数，不进行转换
+            query_distances = [r.get('rrf_score', 0.0) for r in top_results if r.get('id') is not None]
             query_entities = [r for r in top_results if r.get('id') is not None]
             
             ids.append(query_ids)

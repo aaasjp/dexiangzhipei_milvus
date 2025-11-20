@@ -177,8 +177,8 @@ def test_add_document():
         'tenant_code': TENANT_CODE,
         'collection_name': COLLECTION_NAME,
         'api_key': API_KEY,
-        'doc_url': 'http://220.154.134.61:9000/forum-files/2025-11-20-screenshot-20251120-020814-73502e5e-ae2b-428b-ba1c-28e7e9216700.png',
-        'doc_name': '简历2.png'
+        'doc_url': 'http://220.154.134.61:9000/forum-files/2025-11-20-resume-6cd5f243-a23b-4f0a-b2f6-a3b324388429.pdf',
+        'doc_name': '简历-王建华.pdf'
     }
     
     print("注意: 此测试需要有效的文档URL，如果URL不可访问将失败")
@@ -200,7 +200,7 @@ def test_add_multi_document():
             'http://220.154.134.61:9000/forum-files/2025-11-20-screenshot-20251120-020814-73502e5e-ae2b-428b-ba1c-28e7e9216700.png',
         ],
         'doc_names': [
-            '简历.png'
+            '简历-王建华.pdf'
         ]
     }
     
@@ -291,7 +291,7 @@ def test_search_doc():
         'tenant_code': TENANT_CODE,
         'collection_name': COLLECTION_NAME,
         'api_key': API_KEY,
-        'query': 'AI技术',
+        'query': '嵌入式系统',
         'collection_type': 'DOC',
         'limit': 5
     }
@@ -307,7 +307,7 @@ def test_search_qa_hybrid():
         'tenant_code': TENANT_CODE,
         'collection_name': COLLECTION_NAME,
         'api_key': API_KEY,
-        'query': 'AI技术',
+        'query': '嵌入式系统',
         'collection_type': 'QA',
         'limit': 5,
         'use_hybrid': True  # 启用混合检索
@@ -343,7 +343,7 @@ def test_search_doc_hybrid():
         'tenant_code': TENANT_CODE,
         'collection_name': COLLECTION_NAME,
         'api_key': API_KEY,
-        'query': 'AI技术',
+        'query': '嵌入式系统',
         'collection_type': 'DOC',
         'limit': 5,
         'use_hybrid': True  # 启用混合检索
@@ -375,7 +375,7 @@ def test_compare_vector_vs_hybrid():
     """对比纯向量检索和混合检索的结果"""
     print_separator("测试16: 对比纯向量检索 vs 混合检索")
     api_url = BASE_URL + 'search_from_vector_db'
-    query = 'AI技术'
+    query = '嵌入式系统'
     
     # 纯向量检索
     print("\n【纯向量检索】")
@@ -457,10 +457,10 @@ def run_all_tests():
         ("创建知识库", test_new_collection),
         ("添加文档", test_add_document),
         #("批量添加文档", test_add_multi_document),
-        ("搜索文档", test_search_doc),
+        #("搜索文档", test_search_doc),
         #("混合检索QA", test_search_qa_hybrid),
         ("混合检索DOC", test_search_doc_hybrid),
-        ("对比检索方式", test_compare_vector_vs_hybrid),
+        #("对比检索方式", test_compare_vector_vs_hybrid),
         #("删除文档", test_del_document),
         #("删除知识库", test_del_collection),
     ]

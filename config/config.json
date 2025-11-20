@@ -35,7 +35,7 @@
   },
   "hybrid_search": {
     "default_use_hybrid": true,
-    "rrf_k": 60
+    "rrf_k": 20
   },
   "api_key": "2024_hello_ai",
   "embedding_model_path": "/workspace/embeddings/bge-large-zh-v1.5",
