@@ -220,9 +220,9 @@ def insert_qa_to_collection(tenant_code, collection_name, question_list, answer_
     # collection_name就是org_code
     org_code = collection_name
 
-    # 检查已存在的问题
+    # 检查已存在的问题，如果存在则先删除
     exist_quest_count = 0
-    to_delete_indices = []
+    to_delete_questions = []
     for i in range(len(question_list)):
         q = question_list[i]
         escaped_question = q.replace("'", "\\'")
@@ -230,31 +230,36 @@ def insert_qa_to_collection(tenant_code, collection_name, question_list, answer_
         res = collection.query(filter_expr)
         if len(res) > 0:
             exist_quest_count += 1
-            to_delete_indices.append(i)
-            logger.info(f'新增问答对：问题=[{q}] 已经存在，不进行插入')
+            to_delete_questions.append(q)
+            logger.info(f'新增问答对：问题=[{q}] 已经存在，将先删除再插入')
 
-    question_list_to_insert = [x for i, x in enumerate(question_list) if i not in to_delete_indices]
-    answer_list_to_insert = [x for i, x in enumerate(answer_list) if i not in to_delete_indices]
-    source_list_to_insert = [x for i, x in enumerate(source_list) if i not in to_delete_indices]
-    metadata_list_to_insert = [x for i, x in enumerate(metadata_list) if i not in to_delete_indices]
+    # 如果存在相同的问题，先删除
+    if len(to_delete_questions) > 0:
+        logger.info(f'检测到{len(to_delete_questions)}个已存在的问题，开始删除: {to_delete_questions}')
+        for question in to_delete_questions:
+            escaped_question = question.replace("'", "\\'")
+            filter_expr = f"question == '{escaped_question}' && tenant_code == '{tenant_code}' && org_code == '{org_code}'"
+            collection.delete(filter_expr)
+        collection.flush()
+        logger.info(f'已删除{len(to_delete_questions)}个已存在的问题')
 
-    if len(question_list_to_insert) == 0:
-        logger.info(f"新增问答对0条，已经存在而无需新增的问答对{exist_quest_count}条")
-        return True, f"新增问答对0条，已经存在而无需新增的问答对{exist_quest_count}条"
+    if len(question_list) == 0:
+        logger.info(f'新增问答对0条')
+        return True, f'新增问答对0条'
 
-    question_embeddings = embedding_model.embed_documents(question_list_to_insert)
+    question_embeddings = embedding_model.embed_documents(question_list)
     
     # 准备数据：question, answer, source, tenant_code, org_code, embedding, metadata
-    tenant_code_list = [tenant_code] * len(question_list_to_insert)
-    org_code_list = [org_code] * len(question_list_to_insert)
+    tenant_code_list = [tenant_code] * len(question_list)
+    org_code_list = [org_code] * len(question_list)
     
-    data = [question_list_to_insert, answer_list_to_insert, source_list_to_insert, 
-            tenant_code_list, org_code_list, question_embeddings, metadata_list_to_insert]
+    data = [question_list, answer_list, source_list, 
+            tenant_code_list, org_code_list, question_embeddings, metadata_list]
     collection.insert(data=data)
     collection.flush()
-    logger.info(f'插入全局向量库[{global_collection_qa_name}]成功，新增问答对{len(question_list_to_insert)}条，已经存在而无需新增的问答对{exist_quest_count}条')
+    logger.info(f'插入全局向量库[{global_collection_qa_name}]成功，新增问答对{len(question_list)}条，其中{exist_quest_count}条是删除后重新插入的')
 
-    return True, f"插入全局向量库成功，新增问答对{len(question_list_to_insert)}条，已经存在而无需新增的问答对{exist_quest_count}条"
+    return True, f"插入全局向量库成功，新增问答对{len(question_list)}条，其中{exist_quest_count}条是删除后重新插入的"
 
 
 def upsert_qa_to_collection(tenant_code, collection_name, question_list, answer_list, source_list, metadata_list):
@@ -299,9 +304,9 @@ def insert_docs_to_collection(tenant_code, collection_name, doc_name_list, doc_c
     # collection_name就是org_code
     org_code = collection_name
 
-    # 检查已存在的文档
+    # 检查已存在的文档，如果存在则先删除
     exist_doc_count = 0
-    to_delete_indices = []
+    to_delete_file_names = []
     for i in range(len(doc_name_list)):
         dname = doc_name_list[i]
         escaped_dname = dname.replace("'", "\\'")
@@ -309,13 +314,18 @@ def insert_docs_to_collection(tenant_code, collection_name, doc_name_list, doc_c
         res = collection.query(filter_expr)
         if len(res) > 0:
             exist_doc_count += 1
-            to_delete_indices.append(i)
-            logger.info(f'新增文档：file_name=[{dname}] 已经存在，不进行插入')
+            to_delete_file_names.append(dname)
+            logger.info(f'新增文档：file_name=[{dname}] 已经存在，将先删除再插入')
 
-    doc_name_list = [x for i, x in enumerate(doc_name_list) if i not in to_delete_indices]
-    doc_content_list = [x for i, x in enumerate(doc_content_list) if i not in to_delete_indices]
-    source_list = [x for i, x in enumerate(source_list) if i not in to_delete_indices]
-    metadata_list = [x for i, x in enumerate(metadata_list) if i not in to_delete_indices]
+    # 如果存在同名文件，先删除
+    if len(to_delete_file_names) > 0:
+        logger.info(f'检测到{len(to_delete_file_names)}个已存在的文档，开始删除: {to_delete_file_names}')
+        for file_name in to_delete_file_names:
+            escaped_file_name = file_name.replace("'", "\\'")
+            filter_expr = f"file_name == '{escaped_file_name}' && tenant_code == '{tenant_code}' && org_code == '{org_code}'"
+            collection.delete(filter_expr)
+        collection.flush()
+        logger.info(f'已删除{len(to_delete_file_names)}个已存在的文档')
 
     if len(doc_name_list) == 0:
         logger.info(f'新增文档0条，已经存在而无需新增的文档{exist_doc_count}条')
@@ -332,7 +342,6 @@ def insert_docs_to_collection(tenant_code, collection_name, doc_name_list, doc_c
     OVERLAP = config['split']['overlap']
 
     text_spliter = RecursiveCharacterTextSplitter(
-        separators=["\n\n", "\n"],
         chunk_size=CHUNK_LEN, chunk_overlap=OVERLAP,
         length_function=len, keep_separator=False
     )
@@ -505,8 +514,15 @@ def _bm25_search(bm25, entities, query, limit):
     return results
 
 
-def _reciprocal_rank_fusion(vector_results, bm25_results, k=20):
-    """使用RRF（Reciprocal Rank Fusion）融合向量检索和BM25检索结果"""
+def _reciprocal_rank_fusion(vector_results, bm25_results, k=20, bm25_weight=1.2):
+    """使用RRF（Reciprocal Rank Fusion）融合向量检索和BM25检索结果
+    
+    Args:
+        vector_results: 向量检索结果
+        bm25_results: BM25检索结果
+        k: RRF参数k，默认20
+        bm25_weight: BM25权重系数，默认1.2（加大BM25的rank比重）
+    """
     # 构建id到rank的映射
     vector_ranks = {}
     bm25_ranks = {}
@@ -526,14 +542,15 @@ def _reciprocal_rank_fusion(vector_results, bm25_results, k=20):
     # 合并所有文档ID
     all_ids = set(vector_ranks.keys()) | set(bm25_ranks.keys())
     
-    # 计算RRF分数
+    # 计算RRF分数，加大BM25的权重
     rrf_scores = {}
     for doc_id in all_ids:
         rrf_score = 0.0
         if doc_id in vector_ranks:
             rrf_score += 1.0 / (k + vector_ranks[doc_id])
         if doc_id in bm25_ranks:
-            rrf_score += 1.0 / (k + bm25_ranks[doc_id])
+            # 使用权重系数加大BM25的rank比重
+            rrf_score += bm25_weight * 1.0 / (k + bm25_ranks[doc_id])
         rrf_scores[doc_id] = rrf_score
     
     # 按RRF分数排序
@@ -668,7 +685,8 @@ def search_from_collection(tenant_code, collection_name, collection_type, query_
             # RRF融合
             logger.info(f"开始RRF融合结果")
             rrf_k = config.get('hybrid_search', {}).get('rrf_k', 20)
-            fused_results = _reciprocal_rank_fusion(vector_results, bm25_results, k=rrf_k)
+            bm25_weight = config.get('hybrid_search', {}).get('bm25_weight', 1.2)
+            fused_results = _reciprocal_rank_fusion(vector_results, bm25_results, k=rrf_k, bm25_weight=bm25_weight)
             
             # 取top-k结果
             top_results = fused_results[:limit]

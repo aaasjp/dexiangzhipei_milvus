@@ -41,8 +41,8 @@
   "embedding_model_path": "/workspace/embeddings/bge-large-zh-v1.5",
   "SERPAPI_API_KEY": "ae43b25aa260867c95768b1a5d5acc50ce658b77bb561b77d39410580a9707d1",
   "split": {
-    "chunk_size": 100,
-    "overlap": 10
+    "chunk_size": 2000,
+    "overlap": 100
   },
   "mysql": {
     "host": "172.17.10.144",
