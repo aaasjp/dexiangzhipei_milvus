@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 ##加载配置文件
-with open('./config/config.json', 'r') as f:
+with open('./config/config.json', 'r', encoding='utf-8') as f:
     config = json.load(f)
 
 
@@ -110,7 +110,7 @@ class ChatUitls:
             doc_hit_indices = [i for i, s in enumerate(doc_scores) if doc_scores[i] >= doc_hit_score]
             doc_hit_indices=doc_hit_indices[0:rag_doc_counts]
 
-            logger.debug(f'文档命中索引: {doc_hit_indices}')
+            logger.info(f'文档命中索引: {doc_hit_indices}')
 
             if doc_hit_indices:
                 logger.info(f'命中文档: query={query}, context_intent={context_intent}')

@@ -1,0 +1,41 @@
+# Web框架
+Flask
+flask-socketio
+flask-cors
+
+# Milvus向量数据库
+pymilvus
+
+# LangChain相关
+langchain
+langchain-community
+langchain-text-splitters
+
+# 深度学习框架（用于embedding模型）
+torch
+sentence-transformers
+
+# HTTP请求
+requests
+
+# 数据库
+mysql-connector-python
+
+# 数据处理
+pandas
+openpyxl
+
+# 文档处理
+python-docx
+
+# OpenAI客户端
+openai
+
+# PDF处理（langchain-community的PyPDFLoader需要）
+pypdf
+
+# BM25检索
+rank-bm25
+jieba
+
+

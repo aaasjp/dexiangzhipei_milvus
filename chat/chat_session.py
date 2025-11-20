@@ -75,7 +75,7 @@ class ChatSessionManager:
     ##主要在session_dic中增加一个槽位方session，如果已经有槽位了，直接返回。如果没有，就看数据库有没有，有的话放到槽位；数据库也没有就初始化一个
     def add_session(self, session_id):
         if session_id in self.session_dic:
-            logger.debug(f"session已存在: {session_id}")
+            logger.info(f"session已存在: {session_id}")
         else:
             conversation, chat_session_str = SQLDatabase().get_conversation(session_id=session_id)
             if conversation:
@@ -110,7 +110,7 @@ class ChatSessionManager:
             for chatstat in cur_session.chat_state_history:
                 #print(f'=====>chatstat={chatstat},{type(chatstat)}')
                 history.append((chatstat.user_question, chatstat.reply))
-        logger.debug(f'获取历史记录: {history}')
+        logger.info(f'获取历史记录: {history}')
         return history
 
     def update_last_reply_to_chat_state(self, session_id, final_answer):

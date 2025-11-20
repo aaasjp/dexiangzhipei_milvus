@@ -14,7 +14,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 配置信息
-BASE_URL = 'http://172.17.10.144:8005/vector_db_service/'
+BASE_URL = 'http://127.0.0.1:8005/vector_db_service/'
 API_KEY = '2024_hello_ai'
 TENANT_CODE = 'ningbo_bank'
 COLLECTION_NAME = 'xzb'
@@ -177,8 +177,8 @@ def test_add_document():
         'tenant_code': TENANT_CODE,
         'collection_name': COLLECTION_NAME,
         'api_key': API_KEY,
-        'doc_url': 'http://220.154.134.61:9000/upload/1/image/20251110174250_5cd9162bf0c741f0b1f4d7d6a872e5c8.png',
-        'doc_name': '屏幕截图(1).png'
+        'doc_url': 'http://220.154.134.61:9000/forum-files/2025-11-20-screenshot-20251120-020814-73502e5e-ae2b-428b-ba1c-28e7e9216700.png',
+        'doc_name': '简历2.png'
     }
     
     print("注意: 此测试需要有效的文档URL，如果URL不可访问将失败")
@@ -197,10 +197,10 @@ def test_add_multi_document():
         'collection_name': COLLECTION_NAME,
         'api_key': API_KEY,
         'multi_doc_urls': [
-            'http://220.154.134.61:9000/upload/1/image/20251110174250_5cd9162bf0c741f0b1f4d7d6a872e5c8.png',
+            'http://220.154.134.61:9000/forum-files/2025-11-20-screenshot-20251120-020814-73502e5e-ae2b-428b-ba1c-28e7e9216700.png',
         ],
         'doc_names': [
-            '屏幕截图(1).png'
+            '简历.png'
         ]
     }
     
@@ -275,7 +275,7 @@ def test_search_from_vector_db():
         'tenant_code': TENANT_CODE,
         'collection_name': COLLECTION_NAME,
         'api_key': API_KEY,
-        'query': '人工智能',
+        'query': 'AI技术',
         'collection_type': 'QA',
         'limit': 5
     }
@@ -291,12 +291,158 @@ def test_search_doc():
         'tenant_code': TENANT_CODE,
         'collection_name': COLLECTION_NAME,
         'api_key': API_KEY,
-        'query': '王建华',
+        'query': 'AI技术',
         'collection_type': 'DOC',
         'limit': 5
     }
     result = post_request(api_url, data)
     return result
+
+
+def test_search_qa_hybrid():
+    """测试混合检索（QA类型）"""
+    print_separator("测试14: 混合检索（QA类型）")
+    api_url = BASE_URL + 'search_from_vector_db'
+    data = {
+        'tenant_code': TENANT_CODE,
+        'collection_name': COLLECTION_NAME,
+        'api_key': API_KEY,
+        'query': 'AI技术',
+        'collection_type': 'QA',
+        'limit': 5,
+        'use_hybrid': True  # 启用混合检索
+    }
+    result = post_request(api_url, data)
+    
+    # 显示检索结果详情
+    if result and result.get('status') == 'success':
+        data_result = result.get('data', {})
+        entities = data_result.get('entities', [])
+        if entities and len(entities) > 0:
+            print(f"\n混合检索结果（共{len(entities[0])}条）:")
+            for idx, entity in enumerate(entities[0][:3], 1):  # 只显示前3条
+                print(f"\n结果 {idx}:")
+                print(f"  问题: {entity.get('question', 'N/A')}")
+                print(f"  答案: {entity.get('answer', 'N/A')[:50]}...")
+                print(f"  分数: {entity.get('score', 'N/A')}")
+                if 'rrf_score' in entity:
+                    print(f"  RRF分数: {entity.get('rrf_score', 'N/A')}")
+                if 'vector_rank' in entity:
+                    print(f"  向量排名: {entity.get('vector_rank', 'N/A')}")
+                if 'bm25_rank' in entity:
+                    print(f"  BM25排名: {entity.get('bm25_rank', 'N/A')}")
+    
+    return result
+
+
+def test_search_doc_hybrid():
+    """测试混合检索（DOC类型）"""
+    print_separator("测试15: 混合检索（DOC类型）")
+    api_url = BASE_URL + 'search_from_vector_db'
+    data = {
+        'tenant_code': TENANT_CODE,
+        'collection_name': COLLECTION_NAME,
+        'api_key': API_KEY,
+        'query': 'AI技术',
+        'collection_type': 'DOC',
+        'limit': 5,
+        'use_hybrid': True  # 启用混合检索
+    }
+    result = post_request(api_url, data)
+    
+    # 显示检索结果详情
+    if result and result.get('status') == 'success':
+        data_result = result.get('data', {})
+        entities = data_result.get('entities', [])
+        if entities and len(entities) > 0:
+            print(f"\n混合检索结果（共{len(entities[0])}条）:")
+            for idx, entity in enumerate(entities[0][:3], 1):  # 只显示前3条
+                print(f"\n结果 {idx}:")
+                print(f"  文件名: {entity.get('file_name', 'N/A')}")
+                print(f"  内容: {entity.get('content', 'N/A')[:100]}...")
+                print(f"  分数: {entity.get('score', 'N/A')}")
+                if 'rrf_score' in entity:
+                    print(f"  RRF分数: {entity.get('rrf_score', 'N/A')}")
+                if 'vector_rank' in entity:
+                    print(f"  向量排名: {entity.get('vector_rank', 'N/A')}")
+                if 'bm25_rank' in entity:
+                    print(f"  BM25排名: {entity.get('bm25_rank', 'N/A')}")
+    
+    return result
+
+
+def test_compare_vector_vs_hybrid():
+    """对比纯向量检索和混合检索的结果"""
+    print_separator("测试16: 对比纯向量检索 vs 混合检索")
+    api_url = BASE_URL + 'search_from_vector_db'
+    query = 'AI技术'
+    
+    # 纯向量检索
+    print("\n【纯向量检索】")
+    data_vector = {
+        'tenant_code': TENANT_CODE,
+        'collection_name': COLLECTION_NAME,
+        'api_key': API_KEY,
+        'query': query,
+        'collection_type': 'DOC',
+        'limit': 5,
+        'use_hybrid': False
+    }
+    result_vector = post_request(api_url, data_vector, show_request=False)
+    
+    # 混合检索
+    print("\n【混合检索（向量+BM25）】")
+    data_hybrid = {
+        'tenant_code': TENANT_CODE,
+        'collection_name': COLLECTION_NAME,
+        'api_key': API_KEY,
+        'query': query,
+        'collection_type': 'DOC',
+        'limit': 5,
+        'use_hybrid': True
+    }
+    result_hybrid = post_request(api_url, data_hybrid, show_request=False)
+    
+    # 对比结果
+    print("\n【结果对比】")
+    if result_vector and result_vector.get('status') == 'success':
+        vector_data = result_vector.get('data', {})
+        vector_entities = vector_data.get('entities', [])
+        if vector_entities and len(vector_entities) > 0:
+            print(f"\n纯向量检索返回 {len(vector_entities[0])} 条结果:")
+            for idx, entity in enumerate(vector_entities[0][:3], 1):
+                score = entity.get('score', 'N/A')
+                # 格式化分数
+                if isinstance(score, (int, float)):
+                    score_str = f"{score:.4f}"
+                else:
+                    score_str = str(score)
+                question = entity.get('question', 'N/A')
+                question_display = question[:50] if isinstance(question, str) else str(question)[:50]
+                print(f"  {idx}. {question_display}... (分数: {score_str})")
+    
+    if result_hybrid and result_hybrid.get('status') == 'success':
+        hybrid_data = result_hybrid.get('data', {})
+        hybrid_entities = hybrid_data.get('entities', [])
+        if hybrid_entities and len(hybrid_entities) > 0:
+            print(f"\n混合检索返回 {len(hybrid_entities[0])} 条结果:")
+            for idx, entity in enumerate(hybrid_entities[0][:3], 1):
+                rrf_score = entity.get('rrf_score', 'N/A')
+                vector_rank = entity.get('vector_rank', 'N/A')
+                bm25_rank = entity.get('bm25_rank', 'N/A')
+                # 格式化RRF分数
+                if isinstance(rrf_score, (int, float)):
+                    rrf_score_str = f"{rrf_score:.4f}"
+                else:
+                    rrf_score_str = str(rrf_score)
+                # 处理question字段（可能是content字段，取决于collection_type）
+                question = entity.get('question') or entity.get('content', 'N/A')
+                question_display = question[:50] if isinstance(question, str) else str(question)[:50]
+                print(f"  {idx}. {question_display}...")
+                print(f"     RRF分数: {rrf_score_str}, "
+                      f"向量排名: {vector_rank}, BM25排名: {bm25_rank}")
+    
+    return result_vector, result_hybrid
 
 
 def run_all_tests():
@@ -310,10 +456,13 @@ def run_all_tests():
     tests = [
         ("创建知识库", test_new_collection),
         ("添加文档", test_add_document),
-        ("批量添加文档", test_add_multi_document),
+        #("批量添加文档", test_add_multi_document),
         ("搜索文档", test_search_doc),
-        ("删除文档", test_del_document),
-        ("删除知识库", test_del_collection),
+        #("混合检索QA", test_search_qa_hybrid),
+        ("混合检索DOC", test_search_doc_hybrid),
+        ("对比检索方式", test_compare_vector_vs_hybrid),
+        #("删除文档", test_del_document),
+        #("删除知识库", test_del_collection),
     ]
     
     results = []
@@ -331,8 +480,23 @@ def run_all_tests():
     print_separator("测试总结")
     for test_name, result in results:
         if result:
-            status = "✓" if result.get('status') == 'success' else "✗"
-            print(f"{status} {test_name}: {result.get('msg', 'N/A')}")
+            # 处理返回元组的情况（如test_compare_vector_vs_hybrid）
+            if isinstance(result, tuple):
+                # 对于对比测试，检查两个结果是否都成功
+                result_vector, result_hybrid = result
+                if result_vector and result_hybrid:
+                    vector_success = result_vector.get('status') == 'success' if isinstance(result_vector, dict) else False
+                    hybrid_success = result_hybrid.get('status') == 'success' if isinstance(result_hybrid, dict) else False
+                    status = "✓" if (vector_success and hybrid_success) else "✗"
+                    print(f"{status} {test_name}: 对比测试完成")
+                else:
+                    print(f"✗ {test_name}: 对比测试失败")
+            elif isinstance(result, dict):
+                # 处理返回字典的情况（常规测试）
+                status = "✓" if result.get('status') == 'success' else "✗"
+                print(f"{status} {test_name}: {result.get('msg', 'N/A')}")
+            else:
+                print(f"✗ {test_name}: 未知的结果类型")
         else:
             print(f"✗ {test_name}: 测试失败或未执行")
 
@@ -344,15 +508,18 @@ def run_single_test(test_name):
         'add_document': test_add_document,
         'add_multi_document': test_add_multi_document,
         'search_doc': test_search_doc,
-        'del_document': test_del_document,
-        'del_collection': test_del_collection,
-        #'add_qa': test_add_qa,
-        #'add_multiple_qa': test_add_multiple_qa,
+        #'del_document': test_del_document,
+        #'del_collection': test_del_collection,
+        'add_qa': test_add_qa,
+        'add_multiple_qa': test_add_multiple_qa,
         #'add_qa_from_template': test_add_qa_from_template,
         #'update_qa': test_update_qa,
         #'del_qa': test_del_qa,
         #'del_multiple_qa': test_del_multiple_qa,
-        #'search_qa': test_search_from_vector_db,
+        'search_qa': test_search_from_vector_db,
+        'search_qa_hybrid': test_search_qa_hybrid,
+        'search_doc_hybrid': test_search_doc_hybrid,
+        'compare_hybrid': test_compare_vector_vs_hybrid,
     }
     
     if test_name in test_map:

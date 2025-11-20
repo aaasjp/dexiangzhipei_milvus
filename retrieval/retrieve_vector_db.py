@@ -13,9 +13,9 @@ MILVUS_URL = f'http://{MILVUS_HOST}:{MILVUS_PORT}/vector_db_service/search_from_
 MILVUS_API_KEY=config['api_key']
 
 
-def search_qa_from_vector_db(tenant_code, collection_name, query, filter_expr='', limit=5):
+def search_qa_from_vector_db(tenant_code, collection_name, query, filter_expr='', limit=5, use_hybrid=False):
     questions, answers, scores, sources = [], [], [], []
-    res = search_from_vector_db_api(tenant_code, collection_name, 'QA', query, filter_expr, limit)
+    res = search_from_vector_db_api(tenant_code, collection_name, 'QA', query, filter_expr, limit, use_hybrid)
 
     ids=res['ids'][0]
     distances=res['distances'][0]
@@ -30,9 +30,9 @@ def search_qa_from_vector_db(tenant_code, collection_name, query, filter_expr=''
     return questions, answers, scores, sources
 
 
-def search_docs_block_from_vector_db(tenant_code, collection_name, query, filter_expr='', limit=5):
+def search_docs_block_from_vector_db(tenant_code, collection_name, query, filter_expr='', limit=5, use_hybrid=False):
     doc_contents, doc_scores, doc_block_ids, doc_sources, doc_file_names = [], [], [], [], []
-    res = search_from_vector_db_api(tenant_code, collection_name, 'DOC', query, filter_expr, limit)
+    res = search_from_vector_db_api(tenant_code, collection_name, 'DOC', query, filter_expr, limit, use_hybrid)
 
     ids=res['ids'][0]
     distances=res['distances'][0]
@@ -48,8 +48,8 @@ def search_docs_block_from_vector_db(tenant_code, collection_name, query, filter
     return doc_contents, doc_scores, doc_block_ids, doc_sources, doc_file_names
 
 
-def search_from_vector_db_api(tenant_code, collection_name, collection_type, query, filter_expr='', limit=5):
-    logger.debug(f"请求milvus服务器: tenant_code={tenant_code}, collection_name={collection_name}, collection_type={collection_type}, query={query}, filter_expr={filter_expr}, limit={limit}")
+def search_from_vector_db_api(tenant_code, collection_name, collection_type, query, filter_expr='', limit=5, use_hybrid=False):
+    logger.info(f"请求milvus服务器: tenant_code={tenant_code}, collection_name={collection_name}, collection_type={collection_type}, query={query}, filter_expr={filter_expr}, limit={limit}, use_hybrid={use_hybrid}")
 
     data = {
         'tenant_code': tenant_code,
@@ -58,6 +58,7 @@ def search_from_vector_db_api(tenant_code, collection_name, collection_type, que
         'query': query,
         'filter_expr': filter_expr,
         'limit': limit,
+        'use_hybrid': use_hybrid,
         'api_key':MILVUS_API_KEY
     }
     try:
@@ -84,10 +85,10 @@ if __name__ == "__main__":
 
 
     questions, answers, scores, sources = search_qa_from_vector_db(tenant_code, collection_name, query, limit=limit)
-    logger.debug(f'questions={questions}')
-    logger.debug(f'answers={answers}')
-    logger.debug(f'scores={scores}')
-    logger.debug(f'sources={sources}')
+    logger.info(f'questions={questions}')
+    logger.info(f'answers={answers}')
+    logger.info(f'scores={scores}')
+    logger.info(f'sources={sources}')
 
     query = '粤省心'
     doc_contents, doc_scores, doc_block_ids, doc_sources, doc_file_names = search_docs_block_from_vector_db(tenant_code,
@@ -95,10 +96,10 @@ if __name__ == "__main__":
                                                                                                             query,
                                                                                                             limit=limit)
 
-    logger.debug(f'doc_contents={doc_contents}')
-    logger.debug(f'doc_scores={doc_scores}')
-    logger.debug(f'doc_sources={doc_sources}')
-    logger.debug(f'doc_file_names={doc_file_names}')
+    logger.info(f'doc_contents={doc_contents}')
+    logger.info(f'doc_scores={doc_scores}')
+    logger.info(f'doc_sources={doc_sources}')
+    logger.info(f'doc_file_names={doc_file_names}')
 
 
 

@@ -19,7 +19,7 @@ app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 ##加载配置文件
-with open('./config/config.json', 'r') as f:
+with open('./config/config.json', 'r', encoding='utf-8') as f:
     config = json.load(f)
 
 

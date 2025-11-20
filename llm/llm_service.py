@@ -136,7 +136,7 @@ class LlmService:
         if generate_params is None:
             generate_params = {}
         
-        logger.debug(f"LLM推理请求 - prompt长度: {len(prompt)}, system长度: {len(system)}, history轮数: {len(history)}")
+        logger.info(f"LLM推理请求 - prompt长度: {len(prompt)}, system长度: {len(system)}, history轮数: {len(history)}")
         
         # 构建请求参数
         req_params = copy.deepcopy(self.default_params)
@@ -162,7 +162,7 @@ class LlmService:
         messages.append({"role": "user", "content": prompt})
         req_params['messages'] = messages
         
-        logger.debug(f"请求参数: {json.dumps(req_params, ensure_ascii=False, indent=2)}")
+        logger.info(f"请求参数: {json.dumps(req_params, ensure_ascii=False, indent=2)}")
         
         try:
             # 使用OpenAI客户端调用API
@@ -180,7 +180,7 @@ class LlmService:
                 if content is None:
                     raise ValueError("API响应中content为空")
                 
-                logger.debug(f"LLM响应长度: {len(content)}")
+                logger.info(f"LLM响应长度: {len(content)}")
                 return content
                 
         except Exception as e:

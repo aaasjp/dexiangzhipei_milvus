@@ -6,7 +6,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 ##加载配置文件
-with open('./config/config.json', 'r') as f:
+with open('./config/config.json', 'r', encoding='utf-8') as f:
     config = json.load(f)
 
 MYSQL_HOST = config['mysql']['host']
