@@ -5,12 +5,12 @@ logger = logging.getLogger(__name__)
 
 import os
 import json
+import tempfile
+import requests
 from urllib.parse import urlparse
 from flask import Flask, request, jsonify
 from milvus.miluvs_helper import *
-from utils.auth_check import *
 from utils.file_loader import *
-from mysql_utils.mysql_helper import *
 
 
 
@@ -30,10 +30,6 @@ def index():
 def new_collection():
     data = request.get_json()
     logger.info(f'创建全局collection, data={data}')
-    api_key = data.get('api_key', '')
-
-    if not check_api_key(api_key):
-        return jsonify({'status': 'fail', 'code': 400, 'msg': 'api_key校验不通过', 'data': ''})
 
     try:
         is_succ, msg = create_collection()
@@ -51,15 +47,11 @@ def del_collection():
     data = request.get_json()
     logger.info(f'删除collection数据, data={data}')
     tenant_code = data.get('tenant_code', '')
-    collection_name = data.get('collection_name', '')
-    api_key = data.get('api_key', '')
+    org_code = data.get('org_code', '')
 
-    if not check_api_key(api_key):
-        return jsonify({'status': 'fail', 'code': 400, 'msg': 'api_key校验不通过', 'data': ''})
-
-    # tenant_code和collection_name用于过滤要删除的数据，都是可选的
+    # tenant_code和org_code用于过滤要删除的数据，都是可选的
     try:
-        is_succ, msg = delete_collection(tenant_code if tenant_code else None, collection_name if collection_name else None)
+        is_succ, msg = delete_collection(tenant_code if tenant_code else None, org_code if org_code else None)
         if not is_succ:
             return jsonify({'status': 'fail', 'msg': msg, 'code': 400, 'data': ''})
     except Exception:
@@ -74,19 +66,15 @@ def add_qa():
     data = request.get_json()
     logger.info(f'添加QA, data={data}')
     tenant_code = data.get('tenant_code', '')
-    collection_name = data.get('collection_name', '')
-    api_key = data.get('api_key', '')
+    org_code = data.get('org_code', '')
     question = data.get('question', '')
     answer = data.get('answer', '')
     source = data.get('source', '')
 
-    if not check_api_key(api_key):
-        return jsonify({'status': 'fail', 'code': 400, 'msg': 'api_key校验不通过', 'data': ''})
-
     if not tenant_code:
         return jsonify({'status': 'fail', 'msg': '缺少租户统一编码', 'code': 400, 'data': ''})
 
-    if not collection_name:
+    if not org_code:
         return jsonify({'status': 'fail', 'msg': '缺少知识库名称参数', 'code': 400, 'data': ''})
 
     # 支持question和answer可以是字符串或列表
@@ -136,13 +124,13 @@ def add_qa():
     metadata_list = [{}] * len(question_list)
 
     try:
-        is_succ, msg = insert_qa_to_collection(tenant_code, collection_name, question_list=question_list,
+        is_succ, msg = insert_qa_to_collection(tenant_code, org_code, question_list=question_list,
                                                answer_list=answer_list, source_list=source_list, metadata_list=metadata_list)
         if not is_succ:
             return jsonify({'status': 'fail', 'msg': msg, 'code': 400, 'data': ''})
     except Exception:
         import traceback
-        logger.exception(f"插入向量库[{collection_name}]异常: %s", traceback.format_exc())
+        logger.exception(f"插入向量库[{org_code}]异常: %s", traceback.format_exc())
         return jsonify({'status': 'fail', 'msg': traceback.format_exc(), 'code': 400})
     return jsonify({'status': 'success', 'code': 200, 'msg': f'成功插入{len(question_list)}条问答对到向量库', 'data': ''})
 
@@ -152,17 +140,13 @@ def add_qa_from_template():
     data = request.get_json()
     logger.info(f'从模板添加QA, data={data}')
     tenant_code = data.get('tenant_code', '')
-    collection_name = data.get('collection_name', '')
-    api_key = data.get('api_key', '')
+    org_code = data.get('org_code', '')
     template_file_path = data.get('template_path', '')
-
-    if not check_api_key(api_key):
-        return jsonify({'status': 'fail', 'code': 400, 'msg': 'api_key校验不通过', 'data': ''})
 
     if not tenant_code:
         return jsonify({'status': 'fail', 'msg': '缺少租户统一编码', 'code': 400, 'data': ''})
 
-    if not collection_name:
+    if not org_code:
         return jsonify({'status': 'fail', 'msg': '缺少知识库名称参数', 'code': 400, 'data': ''})
 
     if not template_file_path:
@@ -175,14 +159,14 @@ def add_qa_from_template():
     question_list, answers_list, source_list = load_qa_template(template_file_path)
     metadata_list = [{} for q in question_list]
     try:
-        is_succ, msg = insert_qa_to_collection(tenant_code, collection_name, question_list=question_list,
+        is_succ, msg = insert_qa_to_collection(tenant_code, org_code, question_list=question_list,
                                                answer_list=answers_list, source_list=source_list,
                                                metadata_list=metadata_list)
         if not is_succ:
             return jsonify({'status': 'fail', 'msg': msg, 'code': 400, 'data': ''})
     except Exception:
         import traceback
-        logger.exception(f"插入问答对到向量库[{collection_name}]异常: %s", traceback.format_exc())
+        logger.exception(f"插入问答对到向量库[{org_code}]异常: %s", traceback.format_exc())
         return jsonify({'status': 'fail', 'msg': traceback.format_exc(), 'code': 400})
     return jsonify({'status': 'success', 'code': 200, 'msg': '成功插入问答对到向量库', 'data': ''})
 
@@ -192,18 +176,14 @@ def add_document():
     data = request.get_json()
     logger.info(f'添加文档, data={data}')
     tenant_code = data.get('tenant_code', '')
-    collection_name = data.get('collection_name', '')
-    api_key = data.get('api_key', '')
+    org_code = data.get('org_code', '')
     doc_url = data.get('doc_url', '')
     doc_name = data.get('doc_name', '')
-
-    if not check_api_key(api_key):
-        return jsonify({'status': 'fail', 'code': 400, 'msg': 'api_key校验不通过', 'data': ''})
 
     if not tenant_code:
         return jsonify({'status': 'fail', 'msg': '缺少租户统一编码', 'code': 400, 'data': ''})
 
-    if not collection_name:
+    if not org_code:
         return jsonify({'status': 'fail', 'msg': '缺少知识库名称参数', 'code': 400, 'data': ''})
 
     if not doc_url:
@@ -228,13 +208,13 @@ def add_document():
         return jsonify({'status': 'fail', 'msg': f"解析文档失败:{content}", 'code': 400, 'data': ''})
 
     try:
-        is_succ, msg = insert_docs_to_collection(tenant_code, collection_name, doc_name_list=[doc_name.strip()],
+        is_succ, msg = insert_docs_to_collection(tenant_code, org_code, doc_name_list=[doc_name.strip()],
                                                  doc_content_list=[content], source_list=[doc_url], metadata_list=[{}])
         if not is_succ:
             return jsonify({'status': 'fail', 'msg': msg, 'code': 400, 'data': ''})
     except Exception:
         import traceback
-        logger.exception(f"插入文档到向量库[{collection_name}]异常: %s", traceback.format_exc())
+        logger.exception(f"插入文档到向量库[{org_code}]异常: %s", traceback.format_exc())
         return jsonify({'status': 'fail', 'msg': traceback.format_exc(), 'code': 400})
     return jsonify({'status': 'success', 'code': 200, 'msg': '成功插入文档到向量库', 'data': ''})
 
@@ -244,18 +224,14 @@ def add_multi_document():
     data = request.get_json()
     logger.info(f'批量添加文档, data={data}')
     tenant_code = data.get('tenant_code', '')
-    collection_name = data.get('collection_name', '')
-    api_key = data.get('api_key', '')
+    org_code = data.get('org_code', '')
     multi_doc_urls = data.get('multi_doc_urls', [])
     doc_names = data.get('doc_names', [])
-
-    if not check_api_key(api_key):
-        return jsonify({'status': 'fail', 'code': 400, 'msg': 'api_key校验不通过', 'data': ''})
 
     if not tenant_code:
         return jsonify({'status': 'fail', 'msg': '缺少租户统一编码', 'code': 400, 'data': ''})
 
-    if not collection_name:
+    if not org_code:
         return jsonify({'status': 'fail', 'msg': '缺少知识库名称参数', 'code': 400, 'data': ''})
 
     if not multi_doc_urls or not isinstance(multi_doc_urls, list):
@@ -302,24 +278,24 @@ def add_multi_document():
                 failed_count += 1
                 continue
             
-            is_succ, msg = insert_docs_to_collection(tenant_code, collection_name, doc_name_list=[doc_name],
+            is_succ, msg = insert_docs_to_collection(tenant_code, org_code, doc_name_list=[doc_name],
                                                      doc_content_list=[content], source_list=[doc_url],
                                                      metadata_list=[{}])
             if not is_succ:
-                logger.error(f"插入文档[{doc_url}]到向量库[{collection_name}]失败:{msg}")
+                logger.error(f"插入文档[{doc_url}]到向量库[{org_code}]失败:{msg}")
                 failed_count += 1
                 continue
             success_count += 1
         except Exception:
             import traceback
-            logger.exception(f"插入文档[{doc_url}]到向量库[{collection_name}]异常: %s", traceback.format_exc())
+            logger.exception(f"插入文档[{doc_url}]到向量库[{org_code}]异常: %s", traceback.format_exc())
             failed_count += 1
             continue
     
     if failed_count > 0:
         return jsonify({'status': 'fail', 'code': 400,
-                        'msg': f'插入文档到向量库[{collection_name}]：成功[{success_count}]个,失败[{failed_count}]个', 'data': ''})
-    return jsonify({'status': 'success', 'code': 200, 'msg': f'插入文档到向量库[{collection_name}]成功', 'data': ''})
+                        'msg': f'插入文档到向量库[{org_code}]：成功[{success_count}]个,失败[{failed_count}]个', 'data': ''})
+    return jsonify({'status': 'success', 'code': 200, 'msg': f'插入文档到向量库[{org_code}]成功', 'data': ''})
 
 
 @app.route('/vector_db_service/update_qa', methods=['POST'])
@@ -327,19 +303,15 @@ def update_qa():
     data = request.get_json()
     logger.info(f'更新QA, data={data}')
     tenant_code = data.get('tenant_code', '')
-    collection_name = data.get('collection_name', '')
-    api_key = data.get('api_key', '')
+    org_code = data.get('org_code', '')
     question = data.get('question', '')
     answer = data.get('answer', '')
     source = data.get('source', '')
 
-    if not check_api_key(api_key):
-        return jsonify({'status': 'fail', 'code': 400, 'msg': 'api_key校验不通过', 'data': ''})
-
     if not tenant_code:
         return jsonify({'status': 'fail', 'msg': '缺少租户统一编码', 'code': 400, 'data': ''})
 
-    if not collection_name:
+    if not org_code:
         return jsonify({'status': 'fail', 'msg': '缺少知识库名称参数', 'code': 400, 'data': ''})
 
     if not question:
@@ -349,13 +321,13 @@ def update_qa():
         return jsonify({'status': 'fail', 'msg': '缺少答案参数', 'code': 400, 'data': ''})
 
     try:
-        is_succ, msg = upsert_qa_to_collection(tenant_code, collection_name, question_list=[question],
+        is_succ, msg = upsert_qa_to_collection(tenant_code, org_code, question_list=[question],
                                                answer_list=[answer], source_list=[source], metadata_list=[{}])
         if not is_succ:
             return jsonify({'status': 'fail', 'msg': msg, 'code': 400, 'data': ''})
     except Exception:
         import traceback
-        logger.exception(f"更新向量库[{collection_name}]异常: %s", traceback.format_exc())
+        logger.exception(f"更新向量库[{org_code}]异常: %s", traceback.format_exc())
         return jsonify({'status': 'fail', 'msg': traceback.format_exc(), 'code': 400})
     return jsonify({'status': 'success', 'code': 200, 'msg': '成功更新问答对到向量库', 'data': ''})
 
@@ -365,17 +337,13 @@ def del_qa():
     data = request.get_json()
     logger.info(f'删除QA, data={data}')
     tenant_code = data.get('tenant_code', '')
-    collection_name = data.get('collection_name', '')
-    api_key = data.get('api_key', '')
+    org_code = data.get('org_code', '')
     question = data.get('question', [])
-
-    if not check_api_key(api_key):
-        return jsonify({'status': 'fail', 'code': 400, 'msg': 'api_key校验不通过', 'data': ''})
 
     if not tenant_code:
         return jsonify({'status': 'fail', 'msg': '缺少租户统一编码', 'code': 400, 'data': ''})
 
-    if not collection_name:
+    if not org_code:
         return jsonify({'status': 'fail', 'msg': '缺少知识库名称参数', 'code': 400, 'data': ''})
 
     if not question:
@@ -384,7 +352,7 @@ def del_qa():
     question_list=[q.strip() for q in question]
 
     try:
-        is_succ, msg = delete_qa_from_collection(tenant_code, collection_name, question_list=question_list)
+        is_succ, msg = delete_qa_from_collection(tenant_code, org_code, question_list=question_list)
         if not is_succ:
             return jsonify({'status': 'fail', 'msg': msg, 'code': 400, 'data': ''})
     except Exception:
@@ -400,17 +368,13 @@ def del_document():
     data = request.get_json()
     logger.info(f'删除文档, data={data}')
     tenant_code = data.get('tenant_code', '')
-    collection_name = data.get('collection_name', '')
-    api_key = data.get('api_key', '')
+    org_code = data.get('org_code', '')
     doc_name = data.get('doc_name', [])
-
-    if not check_api_key(api_key):
-        return jsonify({'status': 'fail', 'code': 400, 'msg': 'api_key校验不通过', 'data': ''})
 
     if not tenant_code:
         return jsonify({'status': 'fail', 'msg': '缺少租户统一编码', 'code': 400, 'data': ''})
 
-    if not collection_name:
+    if not org_code:
         return jsonify({'status': 'fail', 'msg': '缺少知识库名称参数', 'code': 400, 'data': ''})
 
     if not doc_name:
@@ -419,7 +383,7 @@ def del_document():
     doc_name_list=[dname.strip() for dname in doc_name]
 
     try:
-        is_succ, msg = delete_docs_from_collection(tenant_code, collection_name, doc_name_list=doc_name_list)
+        is_succ, msg = delete_docs_from_collection(tenant_code, org_code, doc_name_list=doc_name_list)
         if not is_succ:
             return jsonify({'status': 'fail', 'msg': msg, 'code': 400, 'data': ''})
     except Exception:
@@ -429,26 +393,94 @@ def del_document():
     return jsonify({'status': 'success', 'code': 200, 'msg': '从全局向量库删除文档成功', 'data': ''})
 
 
+@app.route('/vector_db_service/add_qa_from_url', methods=['POST'])
+def add_qa_from_url():
+    """从URL添加问答对（支持MinIO等URL）"""
+    data = request.get_json()
+    logger.info(f'从URL添加QA, data={data}')
+    tenant_code = data.get('tenant_code', '')
+    org_code = data.get('org_code', '')
+    template_file_url = data.get('template_file_url', '')
+
+    if not tenant_code:
+        return jsonify({'status': 'fail', 'msg': '缺少租户统一编码', 'code': 400, 'data': ''})
+
+    if not org_code:
+        return jsonify({'status': 'fail', 'msg': '缺少知识库名称参数', 'code': 400, 'data': ''})
+
+    if not template_file_url:
+        return jsonify({'status': 'fail', 'msg': '缺少模板文件URL参数', 'code': 400, 'data': ''})
+
+    # 验证URL格式
+    try:
+        parsed_url = urlparse(template_file_url)
+        if not parsed_url.scheme or not parsed_url.netloc:
+            return jsonify({'status': 'fail', 'msg': '文件URL格式不正确', 'code': 400, 'data': ''})
+    except Exception as e:
+        return jsonify({'status': 'fail', 'msg': f'文件URL格式验证失败: {repr(e)}', 'code': 400, 'data': ''})
+
+    # 下载文件到临时目录
+    temp_file_path = None
+    try:
+        logger.info(f"开始从URL下载文件: {template_file_url}")
+        response = requests.get(template_file_url, timeout=300)
+        response.raise_for_status()
+        
+        # 创建临时文件
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        temp_file_path = temp_file.name
+        temp_file.write(response.content)
+        temp_file.close()
+        
+        logger.info(f"文件下载成功，保存到: {temp_file_path}")
+        
+        # 加载问答对模板
+        question_list, answers_list, source_list = load_qa_template(temp_file_path)
+        metadata_list = [{} for q in question_list]
+        
+        # 插入到向量库
+        is_succ, msg = insert_qa_to_collection(tenant_code, org_code, question_list=question_list,
+                                               answer_list=answers_list, source_list=source_list,
+                                               metadata_list=metadata_list)
+        if not is_succ:
+            return jsonify({'status': 'fail', 'msg': msg, 'code': 400, 'data': ''})
+        
+        logger.info(f"成功从URL添加{len(question_list)}条问答对到向量库")
+        return jsonify({'status': 'success', 'code': 200, 'msg': f'成功插入{len(question_list)}条问答对到向量库', 'data': ''})
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"下载文件失败: {e}")
+        return jsonify({'status': 'fail', 'msg': f'下载文件失败: {repr(e)}', 'code': 400, 'data': ''})
+    except Exception as e:
+        import traceback
+        logger.exception(f"从URL添加问答对到向量库[{org_code}]异常: %s", traceback.format_exc())
+        return jsonify({'status': 'fail', 'msg': traceback.format_exc(), 'code': 400})
+    finally:
+        # 清理临时文件
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.unlink(temp_file_path)
+                logger.info(f"已删除临时文件: {temp_file_path}")
+            except Exception as e:
+                logger.warning(f"删除临时文件失败: {e}")
+
+
 @app.route('/vector_db_service/search_from_vector_db', methods=['POST'])
 def search_from_vector_db():
     data = request.get_json()
     logger.info(f'从向量库搜索, data={data}')
     tenant_code = data.get('tenant_code', '')
-    collection_name = data.get('collection_name', '')
-    api_key = data.get('api_key', '')
+    org_code = data.get('org_code', '')
     query = data.get('query', '')
     collection_type = data.get('collection_type', '')
     filter_expr = data.get('filter_expr', '')
     limit = data.get('limit', 5)
     use_hybrid = data.get('use_hybrid', False)  # 是否使用混合检索，默认False
 
-    if not check_api_key(api_key):
-        return jsonify({'status': 'fail', 'code': 400, 'msg': 'api_key校验不通过', 'data': ''})
-
     if not tenant_code:
         return jsonify({'status': 'fail', 'msg': '缺少租户统一编码', 'code': 400, 'data': ''})
 
-    if not collection_name:
+    if not org_code:
         return jsonify({'status': 'fail', 'msg': '缺少知识库名称参数', 'code': 400, 'data': ''})
 
     if not query:
@@ -458,14 +490,14 @@ def search_from_vector_db():
         return jsonify({'status': 'fail', 'msg': 'collect_type不能为空', 'code': 400, 'data': ''})
 
     try:
-        res = search_from_collection(tenant_code=tenant_code, collection_name=collection_name,
+        res = search_from_collection(tenant_code=tenant_code, org_code=org_code,
                                      collection_type=collection_type, query_list=[query], 
                                      filter_expr=filter_expr, limit=limit, use_hybrid=use_hybrid)
 
-        logger.info(f"从向量库[{collection_name}]查询成功，使用混合检索: {use_hybrid}")
+        logger.info(f"从向量库[{org_code}]查询成功，使用混合检索: {use_hybrid}")
     except Exception:
         import traceback
-        logger.exception(f"从向量库[{collection_name}]查询异常: %s", traceback.format_exc())
+        logger.exception(f"从向量库[{org_code}]查询异常: %s", traceback.format_exc())
         return jsonify({'status': 'fail', 'msg': traceback.format_exc(), 'code': 400})
     return jsonify({'status': 'success', 'code': 200, 'msg': '从向量库查询成功', 'data': res})
 

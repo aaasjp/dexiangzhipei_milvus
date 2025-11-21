@@ -153,9 +153,9 @@ def create_collection():
     return True, f"全局向量库和collection初始化完成"
 
 
-def delete_collection(tenant_code=None, collection_name=None):
+def delete_collection(tenant_code=None, org_code=None):
     """删除全局collection中的数据（根据tenant_code和org_code过滤）"""
-    logger.info(f"调用方法:delete_collection，参数为:tenant_code={tenant_code}, collection_name={collection_name}")
+    logger.info(f"调用方法:delete_collection，参数为:tenant_code={tenant_code}, org_code={org_code}")
 
     config_milvus_dic = config['milvus']
     global_db_name, global_collection_qa_name, global_collection_doc_name = get_global_collections()
@@ -173,12 +173,12 @@ def delete_collection(tenant_code=None, collection_name=None):
 
     # 构建过滤表达式
     filter_expr = ""
-    if tenant_code and collection_name:
-        filter_expr = f"tenant_code == '{tenant_code}' && org_code == '{collection_name}'"
+    if tenant_code and org_code:
+        filter_expr = f"tenant_code == '{tenant_code}' && org_code == '{org_code}'"
     elif tenant_code:
         filter_expr = f"tenant_code == '{tenant_code}'"
-    elif collection_name:
-        filter_expr = f"org_code == '{collection_name}'"
+    elif org_code:
+        filter_expr = f"org_code == '{org_code}'"
 
     deleted_count = 0
     if filter_expr:
@@ -194,15 +194,15 @@ def delete_collection(tenant_code=None, collection_name=None):
         doc_collection.flush()
         logger.info(f"从全局DOC向量库删除数据，过滤条件: {filter_expr}")
     else:
-        logger.warning("未提供tenant_code或collection_name，无法删除数据")
+        logger.warning("未提供tenant_code或org_code，无法删除数据")
 
     logger.info(f"从全局向量库删除数据成功")
     return True, f"从全局向量库删除数据成功"
 
 
-def insert_qa_to_collection(tenant_code, collection_name, question_list, answer_list, source_list, metadata_list):
-    """插入QA到全局collection，collection_name就是org_code"""
-    logger.info(f"调用方法:insert_qa_to_collection，参数为:tenant_code={tenant_code}, collection_name={collection_name}, 问答对数量={len(question_list)}")
+def insert_qa_to_collection(tenant_code, org_code, question_list, answer_list, source_list, metadata_list):
+    """插入QA到全局collection，org_code就是org_code"""
+    logger.info(f"调用方法:insert_qa_to_collection，参数为:tenant_code={tenant_code}, org_code={org_code}, 问答对数量={len(question_list)}")
     
     config_milvus_dic = config['milvus']
     global_db_name, global_collection_qa_name, _ = get_global_collections()
@@ -217,8 +217,8 @@ def insert_qa_to_collection(tenant_code, collection_name, question_list, answer_
 
     collection = Collection(name=global_collection_qa_name)
 
-    # collection_name就是org_code
-    org_code = collection_name
+    # org_code就是org_code
+    org_code = org_code
 
     # 检查已存在的问题，如果存在则先删除
     exist_quest_count = 0
@@ -262,18 +262,18 @@ def insert_qa_to_collection(tenant_code, collection_name, question_list, answer_
     return True, f"插入全局向量库成功，新增问答对{len(question_list)}条，其中{exist_quest_count}条是删除后重新插入的"
 
 
-def upsert_qa_to_collection(tenant_code, collection_name, question_list, answer_list, source_list, metadata_list):
-    """更新QA到全局collection（先删除后插入），collection_name就是org_code"""
-    logger.info(f"调用方法:upsert_qa_to_collection，参数为:tenant_code={tenant_code}, collection_name={collection_name}, 问答对数量={len(question_list)}")
+def upsert_qa_to_collection(tenant_code, org_code, question_list, answer_list, source_list, metadata_list):
+    """更新QA到全局collection（先删除后插入），org_code就是org_code"""
+    logger.info(f"调用方法:upsert_qa_to_collection，参数为:tenant_code={tenant_code}, org_code={org_code}, 问答对数量={len(question_list)}")
 
     # 先删除已存在的问答对
-    is_succ, msg = delete_qa_from_collection(tenant_code, collection_name, question_list)
+    is_succ, msg = delete_qa_from_collection(tenant_code, org_code, question_list)
     if not is_succ:
         logger.error(f"更新问答对:先删除已存在的问答对出错:{msg}")
         return False, f"更新问答对:先删除已存在的问答对出错:{msg}"
 
     # 再插入新的问答对
-    is_succ, msg = insert_qa_to_collection(tenant_code, collection_name, question_list, answer_list, source_list,
+    is_succ, msg = insert_qa_to_collection(tenant_code, org_code, question_list, answer_list, source_list,
                                            metadata_list)
     if not is_succ:
         logger.error(f"更新问答对：删除之后插入问答对出错:{msg}")
@@ -283,10 +283,10 @@ def upsert_qa_to_collection(tenant_code, collection_name, question_list, answer_
     return True, f'更新问答对到全局向量库成功'
 
 
-def insert_docs_to_collection(tenant_code, collection_name, doc_name_list, doc_content_list, source_list,
+def insert_docs_to_collection(tenant_code, org_code, doc_name_list, doc_content_list, source_list,
                               metadata_list):
-    """插入文档到全局collection，collection_name就是org_code"""
-    logger.info(f"调用方法:insert_docs_to_collection，参数为:tenant_code={tenant_code}, collection_name={collection_name}, 文档数量={len(doc_name_list)}")
+    """插入文档到全局collection，org_code就是org_code"""
+    logger.info(f"调用方法:insert_docs_to_collection，参数为:tenant_code={tenant_code}, org_code={org_code}, 文档数量={len(doc_name_list)}")
     
     config_milvus_dic = config['milvus']
     global_db_name, _, global_collection_doc_name = get_global_collections()
@@ -301,8 +301,8 @@ def insert_docs_to_collection(tenant_code, collection_name, doc_name_list, doc_c
 
     collection = Collection(name=global_collection_doc_name)
 
-    # collection_name就是org_code
-    org_code = collection_name
+    # org_code就是org_code
+    org_code = org_code
 
     # 检查已存在的文档，如果存在则先删除
     exist_doc_count = 0
@@ -375,9 +375,9 @@ def insert_docs_to_collection(tenant_code, collection_name, doc_name_list, doc_c
     return True, f"插入docs到全局向量库成功,新增文档{len(doc_name_list)}条，已经存在而无需新增的文档{exist_doc_count}条"
 
 
-def delete_qa_from_collection(tenant_code, collection_name, question_list):
-    """从全局collection删除QA，collection_name就是org_code"""
-    logger.info(f"调用方法:delete_qa_from_collection，参数为:tenant_code={tenant_code}, collection_name={collection_name}, 待删除问题数量={len(question_list)}")
+def delete_qa_from_collection(tenant_code, org_code, question_list):
+    """从全局collection删除QA，org_code就是org_code"""
+    logger.info(f"调用方法:delete_qa_from_collection，参数为:tenant_code={tenant_code}, org_code={org_code}, 待删除问题数量={len(question_list)}")
     logger.info(f'待删除的问题列表: {question_list}')
 
     config_milvus_dic = config['milvus']
@@ -392,8 +392,8 @@ def delete_qa_from_collection(tenant_code, collection_name, question_list):
 
     collection = Collection(global_collection_qa_name)
     
-    # collection_name就是org_code
-    org_code = collection_name
+    # org_code就是org_code
+    org_code = org_code
 
     for question in question_list:
         escaped_question = question.replace("'", "\\'")
@@ -405,9 +405,9 @@ def delete_qa_from_collection(tenant_code, collection_name, question_list):
     return True, f"从全局向量库删除问答对成功"
 
 
-def delete_docs_from_collection(tenant_code, collection_name, doc_name_list):
-    """从全局collection删除文档，collection_name就是org_code"""
-    logger.info(f"调用方法:delete_docs_from_collection，参数为:tenant_code={tenant_code}, collection_name={collection_name}, 待删除文档数量={len(doc_name_list)}")
+def delete_docs_from_collection(tenant_code, org_code, doc_name_list):
+    """从全局collection删除文档，org_code就是org_code"""
+    logger.info(f"调用方法:delete_docs_from_collection，参数为:tenant_code={tenant_code}, org_code={org_code}, 待删除文档数量={len(doc_name_list)}")
     logger.info(f'待删除的文档列表: {doc_name_list}')
 
     config_milvus_dic = config['milvus']
@@ -422,8 +422,8 @@ def delete_docs_from_collection(tenant_code, collection_name, doc_name_list):
 
     collection = Collection(global_collection_doc_name)
     
-    # collection_name就是org_code
-    org_code = collection_name
+    # org_code就是org_code
+    org_code = org_code
 
     for file_name in doc_name_list:
         escaped_file_name = file_name.replace("'", "\\'")
@@ -583,12 +583,12 @@ def _reciprocal_rank_fusion(vector_results, bm25_results, k=20, bm25_weight=1.2)
     return fused_results
 
 
-def search_from_collection(tenant_code, collection_name, collection_type, query_list, filter_expr='', limit=5, use_hybrid=False):
+def search_from_collection(tenant_code, org_code, collection_type, query_list, filter_expr='', limit=5, use_hybrid=False):
     """从全局collection搜索
     
     Args:
         tenant_code: 租户代码
-        collection_name: 知识库名称
+        org_code: 知识库名称
         collection_type: 集合类型，'QA'或'DOC'
         query_list: 查询文本列表
         filter_expr: 过滤表达式
@@ -598,7 +598,7 @@ def search_from_collection(tenant_code, collection_name, collection_type, query_
     Returns:
         检索结果字典，包含ids、distances、entities
     """
-    logger.info(f"调用方法:search_from_collection，参数为:tenant_code={tenant_code}, collection_name={collection_name}, collection_type={collection_type}, 查询数量={len(query_list)}, limit={limit}, use_hybrid={use_hybrid}")
+    logger.info(f"调用方法:search_from_collection，参数为:tenant_code={tenant_code}, org_code={org_code}, collection_type={collection_type}, 查询数量={len(query_list)}, limit={limit}, use_hybrid={use_hybrid}")
     logger.info(f"查询内容: {query_list}, 过滤条件: {filter_expr}")
     
     config_milvus_dic = config['milvus']
@@ -623,12 +623,12 @@ def search_from_collection(tenant_code, collection_name, collection_type, query_
 
     # 构建过滤表达式
     base_filter = ""
-    if tenant_code and collection_name:
-        base_filter = f"tenant_code == '{tenant_code}' && org_code == '{collection_name}'"
+    if tenant_code and org_code:
+        base_filter = f"tenant_code == '{tenant_code}' && org_code == '{org_code}'"
     elif tenant_code:
         base_filter = f"tenant_code == '{tenant_code}'"
-    elif collection_name:
-        base_filter = f"org_code == '{collection_name}'"
+    elif org_code:
+        base_filter = f"org_code == '{org_code}'"
     
     # 合并用户提供的过滤表达式
     if filter_expr:

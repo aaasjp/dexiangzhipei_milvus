@@ -6,3 +6,4 @@ env/
 __pycache__/
 .DS_Store
 milvus-docker/volumes/
+npm_modules/

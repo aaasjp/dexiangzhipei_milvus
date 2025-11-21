@@ -1,0 +1,20 @@
+{
+  "name": "ai-helper-web",
+  "version": "1.0.0",
+  "description": "AI助手管理平台前端",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.3.4",
+    "element-plus": "^2.4.4",
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.5.0",
+    "vite": "^5.0.0"
+  }
+}
+
