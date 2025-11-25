@@ -26,8 +26,8 @@ except ImportError:
 
 
 embedding_model = HuggingFaceBgeEmbeddings(
-    model_name=config['embedding_model_path'],
-    #model_name="BAAI/bge-large-en-v1.5",
+    #model_name=config['embedding_model_path'],
+    model_name="BAAI/bge-large-zh-v1.5",
     model_kwargs = {'device': device},
     encode_kwargs={'normalize_embeddings': True}  # set True to compute cosine similarity
 )
