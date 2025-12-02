@@ -1,0 +1,31 @@
+一、对话服务接口 (chat_service)
+1. POST /chat_service/chat
+2. GET /chat_service/sessions
+3. POST /chat_service/session
+4. GET /chat_service/session/<session_id>
+5. GET /chat_service/session/<session_id>/messages
+6. PUT /chat_service/session/<session_id>/title
+7. DELETE /chat_service/session/<session_id>
+8. POST /chat_service/session/<session_id>/restore
+9. POST /chat_service/upload
+10. POST /chat_service/upload_and_parse
+
+二、向量库服务接口 (vector_db_service)
+1. POST /vector_db_service/new_collection
+2. POST /vector_db_service/del_collection
+3. POST /vector_db_service/add_document
+4. POST /vector_db_service/add_multi_document
+5. POST /vector_db_service/del_document
+6. POST /vector_db_service/search_from_vector_db
+7. GET /vector_db_service/download_qa_template
+8. POST /vector_db_service/add_qa
+9. POST /vector_db_service/add_qa_from_template
+10. POST /vector_db_service/del_qa
+
+三、ASR/TTS接口
+POST /http/offline_asr
+POST /http/offline_tts
+
+四、OCR接口
+4. POST /parse
+5. POST /parse/upload
